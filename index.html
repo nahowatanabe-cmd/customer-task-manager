@@ -537,6 +537,10 @@ tbody td {
   <span class="count" id="custCount">0 件</span>
   <div class="spacer"></div>
   <input type="search" class="search-input" id="searchInput" placeholder="🔍 顧客名を検索..." oninput="renderTable()" />
+  <button class="btn btn-ghost" onclick="exportData()" title="データをJSONファイルに書き出す">バックアップ</button>
+  <label class="btn btn-ghost" style="cursor:pointer" title="バックアップファイルから復元">
+    復元<input type="file" accept=".json" onchange="importData(event)" style="display:none" />
+  </label>
   <button class="btn btn-import" onclick="openImportModal()">メール取込</button>
   <button class="btn btn-primary" onclick="openAddModal()">＋ 顧客追加</button>
 </header>
@@ -1000,6 +1004,40 @@ function escHtml(s) {
 }
 function escAttr(s) {
   return String(s).replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+
+// ── Backup / Restore ─────────────────────────────────────────────
+function exportData() {
+  const json = JSON.stringify(customers, null, 2);
+  const blob = new Blob([json], { type: 'application/json' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  const date = new Date().toISOString().slice(0, 10);
+  a.download = `顧客データ_${date}.json`;
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+
+function importData(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    try {
+      const data = JSON.parse(e.target.result);
+      if (!Array.isArray(data)) throw new Error();
+      if (!confirm(`${data.length} 件の顧客データを復元します。\n現在のデータは上書きされます。よろしいですか？`)) return;
+      customers = data;
+      save();
+      closeDrawer();
+      renderTable();
+      alert('復元が完了しました。');
+    } catch {
+      alert('ファイルの形式が正しくありません。');
+    }
+  };
+  reader.readAsText(file);
+  event.target.value = '';
 }
 
 // ── Plan ─────────────────────────────────────────────────────────
