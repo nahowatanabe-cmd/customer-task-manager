@@ -1,0 +1,1110 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>顧客管理</title>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg: #f0f2f5;
+  --surface: #ffffff;
+  --border: #e2e4e9;
+  --text: #1a1d23;
+  --muted: #6b7280;
+  --accent: #4f46e5;
+  --accent-hover: #4338ca;
+  --accent-light: #eef2ff;
+  --danger: #ef4444;
+  --done-bg: #dcfce7;
+  --done-fg: #166534;
+  --empty-bg: #f3f4f6;
+  --empty-fg: #9ca3af;
+  --radius: 10px;
+  --shadow: 0 1px 4px rgba(0,0,0,.08);
+  --drawer-w: 480px;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* ── Header ── */
+header {
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  padding: 0 24px;
+  height: 56px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  flex-shrink: 0;
+}
+header h1 { font-size: 1.1rem; font-weight: 700; }
+header .count {
+  background: var(--accent-light);
+  color: var(--accent);
+  font-size: .75rem;
+  font-weight: 600;
+  padding: 2px 9px;
+  border-radius: 99px;
+}
+header .spacer { flex: 1; }
+.search-input {
+  border: 1px solid var(--border);
+  border-radius: 99px;
+  padding: 6px 14px;
+  font-size: .85rem;
+  outline: none;
+  width: 220px;
+  background: var(--bg);
+  color: var(--text);
+  transition: border-color .15s;
+}
+.search-input:focus { border-color: var(--accent); background: var(--surface); }
+.btn {
+  padding: 8px 16px;
+  border-radius: 7px;
+  border: none;
+  font-size: .85rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background .15s, transform .1s;
+  white-space: nowrap;
+}
+.btn:active { transform: scale(.97); }
+.btn-primary { background: var(--accent); color: #fff; }
+.btn-primary:hover { background: var(--accent-hover); }
+.btn-ghost { background: transparent; color: var(--muted); border: 1px solid var(--border); }
+.btn-ghost:hover { background: var(--bg); }
+
+/* ── Layout ── */
+.layout {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+  height: calc(100vh - 56px);
+}
+
+/* ── Customer table ── */
+.main-panel {
+  flex: 1;
+  overflow-y: auto;
+  padding: 24px;
+  min-width: 0;
+}
+
+.table-wrap {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  overflow: hidden;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: .875rem;
+}
+thead th {
+  background: #f8f9fb;
+  padding: 11px 16px;
+  text-align: left;
+  font-size: .75rem;
+  font-weight: 600;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: .04em;
+  border-bottom: 1px solid var(--border);
+  white-space: nowrap;
+}
+thead th.sortable {
+  cursor: pointer;
+  user-select: none;
+}
+thead th.sortable:hover { color: var(--accent); }
+thead th.sort-active { color: var(--accent); }
+.sort-icon { margin-left: 4px; font-style: normal; }
+tbody tr {
+  border-bottom: 1px solid var(--border);
+  cursor: pointer;
+  transition: background .1s;
+}
+tbody tr:last-child { border-bottom: none; }
+tbody tr:hover { background: var(--accent-light); }
+tbody tr.active { background: var(--accent-light); }
+tbody td {
+  padding: 13px 16px;
+  vertical-align: middle;
+}
+.customer-name {
+  font-weight: 600;
+  color: var(--text);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.avatar {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: var(--accent);
+  color: #fff;
+  font-size: .8rem;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.progress-cell { min-width: 140px; }
+.progress-wrap { display: flex; align-items: center; gap: 8px; }
+.progress-bg {
+  flex: 1;
+  height: 6px;
+  background: var(--border);
+  border-radius: 99px;
+  overflow: hidden;
+}
+.progress-fill {
+  height: 100%;
+  border-radius: 99px;
+  background: var(--accent);
+  transition: width .3s ease;
+}
+.pct-label { font-size: .75rem; color: var(--muted); width: 32px; text-align: right; }
+.tag {
+  display: inline-block;
+  font-size: .72rem;
+  padding: 2px 8px;
+  border-radius: 99px;
+  font-weight: 500;
+}
+.tag-done { background: var(--done-bg); color: var(--done-fg); }
+.tag-empty { background: var(--empty-bg); color: var(--empty-fg); }
+.tag-wip { background: #dbeafe; color: #1e40af; }
+
+.empty-state {
+  padding: 60px 20px;
+  text-align: center;
+  color: var(--muted);
+}
+.empty-state p { margin-top: 8px; font-size: .9rem; }
+
+/* ── Drawer ── */
+.drawer {
+  width: var(--drawer-w);
+  background: var(--surface);
+  border-left: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  flex-shrink: 0;
+  transition: width .25s ease;
+}
+.drawer.closed { width: 0; border-left: none; }
+
+.drawer-header {
+  padding: 18px 20px 14px;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+.drawer-header-top {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+.drawer-avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: var(--accent);
+  color: #fff;
+  font-size: 1rem;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.drawer-title {
+  flex: 1;
+}
+.drawer-title h2 {
+  font-size: 1.05rem;
+  font-weight: 700;
+  word-break: break-all;
+}
+.drawer-title .sub { font-size: .78rem; color: var(--muted); margin-top: 2px; }
+.drawer-close {
+  width: 28px;
+  height: 28px;
+  border: none;
+  background: var(--bg);
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 1rem;
+  color: var(--muted);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.drawer-close:hover { background: var(--border); }
+
+.drawer-progress {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.drawer-progress .bg {
+  flex: 1;
+  height: 8px;
+  background: var(--border);
+  border-radius: 99px;
+  overflow: hidden;
+}
+.drawer-progress .fill {
+  height: 100%;
+  border-radius: 99px;
+  background: var(--accent);
+  transition: width .3s ease;
+}
+.drawer-progress .pct {
+  font-size: .78rem;
+  font-weight: 600;
+  color: var(--accent);
+  width: 36px;
+  text-align: right;
+}
+
+/* Customer name edit */
+.name-input-wrap {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: 1;
+}
+.name-display {
+  font-size: 1.05rem;
+  font-weight: 700;
+  cursor: pointer;
+  padding: 2px 4px;
+  border-radius: 4px;
+  transition: background .1s;
+}
+.name-display:hover { background: var(--accent-light); }
+.name-edit-input {
+  font-size: 1rem;
+  font-weight: 700;
+  border: 1.5px solid var(--accent);
+  border-radius: 6px;
+  padding: 2px 8px;
+  outline: none;
+  width: 100%;
+  font-family: inherit;
+  color: var(--text);
+}
+
+/* ── Steps ── */
+.drawer-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px 20px;
+}
+
+.step-group {
+  margin-bottom: 20px;
+}
+.step-group-label {
+  font-size: .7rem;
+  font-weight: 700;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: .06em;
+  margin-bottom: 8px;
+  padding-left: 2px;
+}
+
+.step-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  margin-bottom: 6px;
+  background: var(--surface);
+  transition: border-color .15s, background .15s;
+}
+.step-row.filled {
+  border-color: #86efac;
+  background: #f0fdf4;
+}
+.step-check {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  border: 2px solid var(--border);
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: .65rem;
+  transition: all .15s;
+}
+.step-row.filled .step-check {
+  background: #22c55e;
+  border-color: #22c55e;
+  color: #fff;
+}
+.step-label {
+  font-size: .85rem;
+  font-weight: 500;
+  color: var(--text);
+  min-width: 120px;
+  flex-shrink: 0;
+}
+.step-input {
+  flex: 1;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 5px 10px;
+  font-size: .82rem;
+  font-family: inherit;
+  color: var(--text);
+  background: var(--bg);
+  outline: none;
+  transition: border-color .15s;
+  min-width: 0;
+}
+.step-input:focus { border-color: var(--accent); background: var(--surface); }
+.step-row.filled .step-input { background: #fff; }
+.step-row.skipped {
+  background: #fafafa;
+  border-color: #e5e7eb;
+  opacity: .55;
+}
+.step-row.skipped .step-label { text-decoration: line-through; color: var(--muted); }
+.step-row.skipped .step-input { pointer-events: none; background: #f3f4f6; color: var(--muted); }
+.skip-btn {
+  flex-shrink: 0;
+  padding: 3px 8px;
+  border-radius: 99px;
+  border: 1px solid var(--border);
+  font-size: .68rem;
+  font-weight: 600;
+  cursor: pointer;
+  color: var(--muted);
+  background: transparent;
+  transition: all .15s;
+  white-space: nowrap;
+  line-height: 1.4;
+}
+.skip-btn:hover { background: #fef3c7; border-color: #fbbf24; color: #92400e; }
+.skip-btn.active { background: #fef3c7; border-color: #fbbf24; color: #92400e; }
+.step-alert {
+  font-size: .68rem;
+  color: #b91c1c;
+  background: #fef2f2;
+  border: 1px solid #fca5a5;
+  border-radius: 5px;
+  padding: 2px 7px;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.step-note {
+  width: 100%;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 5px 10px;
+  font-size: .82rem;
+  font-family: inherit;
+  color: var(--text);
+  background: var(--bg);
+  outline: none;
+  resize: none;
+  height: 36px;
+  transition: border-color .15s, height .15s;
+}
+.step-note:focus { border-color: var(--accent); height: 60px; background: var(--surface); }
+
+/* ── Drawer actions ── */
+.drawer-footer {
+  padding: 14px 20px;
+  border-top: 1px solid var(--border);
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+  flex-shrink: 0;
+}
+
+/* ── Delete confirm ── */
+.overlay {
+  position: fixed; inset: 0;
+  background: rgba(0,0,0,.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 200;
+  padding: 20px;
+}
+.overlay.hidden { display: none; }
+.modal {
+  background: var(--surface);
+  border-radius: var(--radius);
+  padding: 28px;
+  max-width: 380px;
+  width: 100%;
+  box-shadow: 0 8px 32px rgba(0,0,0,.2);
+}
+.modal h2 { font-size: 1rem; font-weight: 700; margin-bottom: 10px; }
+.modal p { font-size: .875rem; color: var(--muted); line-height: 1.6; }
+.modal-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 20px; }
+.btn-danger { background: var(--danger); color: #fff; }
+.btn-danger:hover { background: #dc2626; }
+
+/* ── Add customer modal ── */
+.add-modal { max-width: 420px; }
+.add-modal h2 { margin-bottom: 18px; }
+.field { margin-bottom: 14px; }
+.field label { display: block; font-size: .8rem; font-weight: 600; color: var(--muted); margin-bottom: 5px; }
+.field input {
+  width: 100%;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  padding: 9px 12px;
+  font-size: .9rem;
+  font-family: inherit;
+  background: var(--bg);
+  color: var(--text);
+  outline: none;
+  transition: border-color .15s;
+}
+.field input:focus { border-color: var(--accent); background: var(--surface); }
+
+/* ── Import modal ── */
+.import-modal { max-width: 500px; }
+.import-modal h2 { margin-bottom: 8px; }
+.import-hint { font-size: .8rem; color: var(--muted); line-height: 1.6; margin-bottom: 14px; }
+.import-modal textarea {
+  width: 100%;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  padding: 9px 12px;
+  font-size: .82rem;
+  font-family: inherit;
+  background: var(--bg);
+  color: var(--text);
+  outline: none;
+  resize: vertical;
+  transition: border-color .15s;
+}
+.import-modal textarea:focus { border-color: var(--accent); background: var(--surface); }
+.import-preview {
+  background: var(--accent-light);
+  border: 1px solid var(--accent);
+  border-radius: 8px;
+  padding: 12px 14px;
+  margin-top: 12px;
+  font-size: .85rem;
+}
+.import-preview.hidden { display: none; }
+.import-preview.error { background: #fef2f2; border-color: #fca5a5; color: var(--danger); }
+.import-preview .preview-row { display: flex; gap: 8px; margin-bottom: 4px; }
+.import-preview .preview-row:last-child { margin-bottom: 0; }
+.import-preview .preview-label { color: var(--muted); min-width: 90px; font-size: .78rem; flex-shrink: 0; }
+.import-preview .preview-val { font-weight: 600; }
+.btn-import { background: #059669; color: #fff; }
+.btn-import:hover { background: #047857; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>顧客管理</h1>
+  <span class="count" id="custCount">0 件</span>
+  <div class="spacer"></div>
+  <input type="search" class="search-input" id="searchInput" placeholder="🔍 顧客名を検索..." oninput="renderTable()" />
+  <button class="btn btn-import" onclick="openImportModal()">メール取込</button>
+  <button class="btn btn-primary" onclick="openAddModal()">＋ 顧客追加</button>
+</header>
+
+<div class="layout">
+  <!-- Customer table -->
+  <div class="main-panel" id="mainPanel">
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th class="sortable sort-active" onclick="setSort('createdAt')" id="th-createdAt">登録順 <i class="sort-icon">↓</i></th>
+            <th class="sortable" onclick="setSort('startMonth')" id="th-startMonth">利用開始月</th>
+            <th>プラン</th>
+            <th>次のアクション</th>
+            <th class="progress-cell">進捗</th>
+          </tr>
+        </thead>
+        <tbody id="tableBody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Detail drawer -->
+  <div class="drawer closed" id="drawer">
+    <div class="drawer-header">
+      <div class="drawer-header-top">
+        <div class="drawer-avatar" id="drawerAvatar">?</div>
+        <div class="drawer-title" id="drawerTitle">
+          <div class="name-display" id="nameDisplay" onclick="startEditName()">-</div>
+          <div class="sub" id="drawerSub"></div>
+        </div>
+        <button class="drawer-close" onclick="closeDrawer()">✕</button>
+      </div>
+      <div class="drawer-progress">
+        <div class="bg"><div class="fill" id="drawerProgressFill" style="width:0%"></div></div>
+        <div class="pct" id="drawerProgressPct">0%</div>
+      </div>
+      <div style="margin-top:10px">
+        <select id="drawerPlanSelect" onchange="updatePlan(this.value)"
+          style="width:100%;border:1px solid var(--border);border-radius:6px;padding:5px 10px;font-size:.82rem;font-family:inherit;background:var(--bg);color:var(--text);outline:none;cursor:pointer;">
+          <option value="">— プラン未選択 —</option>
+          <option>フードビジネス/リテールビジネス プラン</option>
+          <option>リテールビジネス プラン</option>
+          <option>フードビジネス プラン</option>
+          <option>プレミアムプラス プラン</option>
+          <option>プレミアム プラン</option>
+          <option>スタンダード プラン</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="drawer-body" id="drawerBody"></div>
+
+    <div class="drawer-footer">
+      <button class="btn btn-ghost btn-danger-ghost" onclick="openDeleteConfirm()">削除</button>
+    </div>
+  </div>
+</div>
+
+<!-- Add customer modal -->
+<div class="overlay hidden" id="addOverlay" onclick="closeAddModal(event)">
+  <div class="modal add-modal" onclick="event.stopPropagation()">
+    <h2>顧客を追加</h2>
+    <div class="field">
+      <label>顧客名</label>
+      <input type="text" id="newCustName" placeholder="例：株式会社〇〇" maxlength="80" />
+    </div>
+    <div class="field">
+      <label>プラン</label>
+      <select id="newCustPlan" style="width:100%;border:1px solid var(--border);border-radius:7px;padding:9px 12px;font-size:.9rem;font-family:inherit;background:var(--bg);color:var(--text);outline:none;cursor:pointer;">
+        <option value="">— 未選択 —</option>
+        <option>フードビジネス/リテールビジネス プラン</option>
+        <option>リテールビジネス プラン</option>
+        <option>フードビジネス プラン</option>
+        <option>プレミアムプラス プラン</option>
+        <option>プレミアム プラン</option>
+        <option>スタンダード プラン</option>
+      </select>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeAddModal()">キャンセル</button>
+      <button class="btn btn-primary" onclick="addCustomer()">追加</button>
+    </div>
+  </div>
+</div>
+
+<!-- Email import modal -->
+<div class="overlay hidden" id="importOverlay" onclick="closeImportModal(event)">
+  <div class="modal import-modal" onclick="event.stopPropagation()">
+    <h2>メールから顧客取込</h2>
+    <p class="import-hint">「スマレジアカウントの本申込がありました。」メールの本文を貼り付けてください。会社名・利用開始月・プランを自動抽出します。</p>
+    <div class="field">
+      <label>メール本文</label>
+      <textarea id="importEmailText" rows="10" placeholder="メール本文をここに貼り付け..." oninput="parseImportEmail()"></textarea>
+    </div>
+    <div id="importPreview" class="import-preview hidden"></div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeImportModal()">キャンセル</button>
+      <button class="btn btn-primary" id="importConfirmBtn" onclick="confirmImport()" disabled>取込</button>
+    </div>
+  </div>
+</div>
+
+<!-- Delete confirm modal -->
+<div class="overlay hidden" id="deleteOverlay" onclick="closeDeleteConfirm(event)">
+  <div class="modal" onclick="event.stopPropagation()">
+    <h2>顧客を削除しますか？</h2>
+    <p id="deleteMsg">この操作は取り消せません。</p>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeDeleteConfirm()">キャンセル</button>
+      <button class="btn btn-danger" onclick="deleteCustomer()">削除する</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── Step definitions ──────────────────────────────────────────────
+const STEPS = [
+  { key: 'posAccount',    label: 'POSアカウント発行', type: 'date',  group: 'アカウント発行' },
+  { key: 'tcAccount',     label: 'TCアカウント発行',  type: 'date',  group: 'アカウント発行' },
+  { key: 'startMonth',    label: '利用開始月',        type: 'month', group: 'アカウント発行' },
+  { key: 'appApply',      label: 'アプリ申込',        type: 'date',  group: 'アカウント発行', alertAfter: 'startMonth' },
+  { key: 'equipOrder',    label: '機器発注',          type: 'date',  group: '機器' },
+  { key: 'payment',       label: '入金確認',          type: 'date',  group: '機器' },
+  { key: 'shipDate',      label: '発送日',            type: 'date',  group: '機器' },
+  { key: 'arrivalDate',   label: '到着日',            type: 'date',  group: '機器' },
+  { key: 'paygateApply',  label: 'PAYGATE申込',       type: 'date',  group: 'PAYGATE' },
+  { key: 'manual',        label: 'マニュアル送付',    type: 'date',  group: 'オンボーディング' },
+  { key: 'posOnboarding', label: 'POSオンボ予約',     type: 'date',  group: 'オンボーディング' },
+  { key: 'tcOnboarding',  label: 'TCオンボ予約',      type: 'date',  group: 'オンボーディング' },
+  { key: 'paygateShip',  label: 'PAYGATE発送',      type: 'date',  group: 'PAYGATE' },
+  { key: 'delivery',     label: '納品日',           type: 'date',  group: '導入サポート' },
+  { key: 'supportMail',  label: '事前準備事項送付',   type: 'date',  group: '導入サポート' },
+  { key: 'maintenanceSheet', label: '保守役務シート入力', type: 'date',  group: '導入サポート' },
+  { key: 'outsource',    label: '外注先',           type: 'text',  group: '導入サポート' },
+];
+
+const GROUPS = [...new Set(STEPS.map(s => s.group))];
+
+// ── Storage ──────────────────────────────────────────────────────
+const KEY = 'customers_v1';
+let customers = JSON.parse(localStorage.getItem(KEY) || '[]');
+let selectedId = null;
+let editingNameId = null;
+let sortKey = 'createdAt';
+let sortDir = 'desc';
+
+function save() { localStorage.setItem(KEY, JSON.stringify(customers)); }
+function genId() { return Date.now().toString(36) + Math.random().toString(36).slice(2); }
+function find(id) { return customers.find(c => c.id === id); }
+
+function activeSteps(c) {
+  return STEPS.filter(s => !(c.skipped || {})[s.key]);
+}
+function filledCount(c) {
+  return activeSteps(c).filter(s => c.steps[s.key] && String(c.steps[s.key]).trim()).length;
+}
+function progress(c) {
+  const active = activeSteps(c);
+  if (active.length === 0) return 100;
+  return Math.round((filledCount(c) / active.length) * 100);
+}
+
+// ── Add customer ─────────────────────────────────────────────────
+function openAddModal() {
+  document.getElementById('newCustName').value = '';
+  document.getElementById('newCustPlan').value = '';
+  document.getElementById('addOverlay').classList.remove('hidden');
+  setTimeout(() => document.getElementById('newCustName').focus(), 50);
+}
+function closeAddModal(e) {
+  if (!e || e.target === document.getElementById('addOverlay'))
+    document.getElementById('addOverlay').classList.add('hidden');
+}
+function addCustomer() {
+  const name = document.getElementById('newCustName').value.trim();
+  if (!name) { document.getElementById('newCustName').focus(); return; }
+  const plan = document.getElementById('newCustPlan').value;
+  const c = { id: genId(), name, plan, createdAt: Date.now(), steps: {}, skipped: {} };
+  customers.unshift(c);
+  save();
+  closeAddModal();
+  renderTable();
+  openDrawer(c.id);
+}
+
+// ── Delete customer ───────────────────────────────────────────────
+function openDeleteConfirm() {
+  const c = find(selectedId);
+  if (!c) return;
+  document.getElementById('deleteMsg').textContent = `「${c.name}」を削除します。この操作は取り消せません。`;
+  document.getElementById('deleteOverlay').classList.remove('hidden');
+}
+function closeDeleteConfirm(e) {
+  if (!e || e.target === document.getElementById('deleteOverlay'))
+    document.getElementById('deleteOverlay').classList.add('hidden');
+}
+function deleteCustomer() {
+  customers = customers.filter(c => c.id !== selectedId);
+  save();
+  closeDeleteConfirm();
+  closeDrawer();
+  renderTable();
+}
+
+// ── Drawer ───────────────────────────────────────────────────────
+function openDrawer(id) {
+  selectedId = id;
+  document.getElementById('drawer').classList.remove('closed');
+  renderDrawer();
+  renderTable(); // update active row
+}
+function closeDrawer() {
+  selectedId = null;
+  document.getElementById('drawer').classList.add('closed');
+  renderTable();
+}
+
+function renderDrawer() {
+  const c = find(selectedId);
+  if (!c) return;
+
+  const initials = c.name.slice(0, 2).toUpperCase();
+  document.getElementById('drawerAvatar').textContent = initials;
+  document.getElementById('nameDisplay').textContent = c.name;
+  document.getElementById('nameDisplay').style.display = '';
+  const nameInput = document.getElementById('drawerTitle').querySelector('.name-edit-input');
+  if (nameInput) nameInput.remove();
+
+  const pct = progress(c);
+  document.getElementById('drawerProgressFill').style.width = pct + '%';
+  document.getElementById('drawerProgressPct').textContent = pct + '%';
+  const active = activeSteps(c);
+  const skippedCount = STEPS.length - active.length;
+  const skipNote = skippedCount > 0 ? ` （対象外 ${skippedCount} 件）` : '';
+  document.getElementById('drawerSub').textContent = `${filledCount(c)} / ${active.length} 項目完了${skipNote}`;
+  document.getElementById('drawerPlanSelect').value = c.plan || '';
+
+  const body = document.getElementById('drawerBody');
+  body.innerHTML = GROUPS.map(group => {
+    const steps = STEPS.filter(s => s.group === group);
+    return `
+      <div class="step-group">
+        <div class="step-group-label">${group}</div>
+        ${steps.map(s => renderStep(c, s)).join('')}
+      </div>`;
+  }).join('');
+}
+
+function renderStep(c, s) {
+  const val = c.steps[s.key] || '';
+  const skipped = !!(c.skipped || {})[s.key];
+  const filled = !skipped && val.trim() !== '';
+  const placeholder = skipped ? '対象外' : (s.type === 'date' ? '日付を選択' : s.type === 'month' ? '年月を選択' : 'テキスト入力');
+  const inputVal = skipped ? '' : escAttr(val);
+  const inputEvent = skipped ? '' : `oninput="updateStep('${s.key}', this.value)"`;
+  return `
+    <div class="step-row${filled ? ' filled' : ''}${skipped ? ' skipped' : ''}" id="step-${s.key}">
+      <div class="step-check">${filled ? '✓' : skipped ? '—' : ''}</div>
+      <div class="step-label">${s.label}</div>
+      <input type="${skipped ? 'text' : s.type}" class="step-input" value="${inputVal}"
+        placeholder="${placeholder}" ${inputEvent} ${skipped ? 'disabled' : ''} />
+      <button class="skip-btn${skipped ? ' active' : ''}" onclick="toggleSkip('${s.key}')"
+        title="${skipped ? 'スキップを解除' : 'この項目を対象外にする'}">対象外</button>
+    </div>`;
+}
+
+function getStepAlert(c, s) {
+  if (s.key !== 'appApply') return null;
+  if ((c.skipped || {})[s.key]) return null;
+  if ((c.steps[s.key] || '').trim()) return null;
+  const startMonth = (c.steps.startMonth || '').trim();
+  if (!startMonth) return null;
+  const now = new Date();
+  const nowYM = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+  return nowYM >= startMonth ? 'アプリ未申込です' : null;
+}
+
+function reRenderRow(c, key) {
+  const s = STEPS.find(st => st.key === key);
+  const row = document.getElementById('step-' + key);
+  if (!s || !row) return;
+  const tmp = document.createElement('div');
+  tmp.innerHTML = renderStep(c, s);
+  row.replaceWith(tmp.firstElementChild);
+}
+
+function updateStep(key, value) {
+  const c = find(selectedId);
+  if (!c) return;
+  c.steps[key] = value;
+  save();
+
+  reRenderRow(c, key);
+  // Re-render rows that alert based on this key
+  STEPS.filter(s => s.alertAfter === key).forEach(s => reRenderRow(c, s.key));
+
+  updateProgressDisplay(c);
+  renderTable();
+}
+
+function updateProgressDisplay(c) {
+  const pct = progress(c);
+  document.getElementById('drawerProgressFill').style.width = pct + '%';
+  document.getElementById('drawerProgressPct').textContent = pct + '%';
+  const active = activeSteps(c);
+  const skippedCount = STEPS.length - active.length;
+  const skipNote = skippedCount > 0 ? ` （対象外 ${skippedCount} 件）` : '';
+  document.getElementById('drawerSub').textContent = `${filledCount(c)} / ${active.length} 項目完了${skipNote}`;
+}
+
+function toggleSkip(key) {
+  const c = find(selectedId);
+  if (!c) return;
+  if (!c.skipped) c.skipped = {};
+  if (c.skipped[key]) {
+    delete c.skipped[key];
+  } else {
+    c.skipped[key] = true;
+  }
+  save();
+  // Re-render just this row
+  const s = STEPS.find(st => st.key === key);
+  const oldRow = document.getElementById('step-' + key);
+  if (s && oldRow) {
+    const tmp = document.createElement('div');
+    tmp.innerHTML = renderStep(c, s);
+    oldRow.replaceWith(tmp.firstElementChild);
+  }
+  updateProgressDisplay(c);
+  renderTable();
+}
+
+// ── Inline name edit ─────────────────────────────────────────────
+function startEditName() {
+  const c = find(selectedId);
+  if (!c) return;
+  const display = document.getElementById('nameDisplay');
+  display.style.display = 'none';
+  const inp = document.createElement('input');
+  inp.type = 'text';
+  inp.className = 'name-edit-input';
+  inp.value = c.name;
+  inp.maxLength = 80;
+  inp.onblur = () => commitName(inp.value);
+  inp.onkeydown = (e) => { if (e.key === 'Enter') inp.blur(); if (e.key === 'Escape') { inp.value = c.name; inp.blur(); } };
+  document.getElementById('drawerTitle').insertBefore(inp, display);
+  inp.focus();
+  inp.select();
+}
+function commitName(val) {
+  const c = find(selectedId);
+  if (!c) return;
+  const name = val.trim();
+  if (name) { c.name = name; save(); }
+  renderDrawer();
+  renderTable();
+}
+
+// ── Sort ──────────────────────────────────────────────────────────
+function setSort(key) {
+  if (sortKey === key) {
+    sortDir = sortDir === 'asc' ? 'desc' : 'asc';
+  } else {
+    sortKey = key;
+    sortDir = key === 'startMonth' ? 'asc' : 'desc';
+  }
+  renderTable();
+}
+
+function updateSortHeaders() {
+  ['createdAt', 'startMonth'].forEach(key => {
+    const th = document.getElementById('th-' + key);
+    if (!th) return;
+    const icon = th.querySelector('.sort-icon');
+    if (sortKey === key) {
+      th.classList.add('sort-active');
+      if (icon) icon.textContent = sortDir === 'asc' ? '↑' : '↓';
+    } else {
+      th.classList.remove('sort-active');
+      if (icon) icon.textContent = '';
+    }
+  });
+}
+
+// ── Table ─────────────────────────────────────────────────────────
+function renderTable() {
+  const query = document.getElementById('searchInput').value.toLowerCase();
+  let filtered = customers.filter(c => c.name.toLowerCase().includes(query));
+
+  filtered.sort((a, b) => {
+    let av, bv;
+    if (sortKey === 'startMonth') {
+      av = a.steps.startMonth || '';
+      bv = b.steps.startMonth || '';
+    } else {
+      av = a.createdAt || 0;
+      bv = b.createdAt || 0;
+    }
+    if (av < bv) return sortDir === 'asc' ? -1 : 1;
+    if (av > bv) return sortDir === 'asc' ? 1 : -1;
+    return 0;
+  });
+
+  updateSortHeaders();
+
+  document.getElementById('custCount').textContent = `${customers.length} 件`;
+
+  const tbody = document.getElementById('tableBody');
+  if (filtered.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="6"><div class="empty-state">
+      <div style="font-size:2rem">📋</div>
+      <p>${query ? `「${query}」に一致する顧客はいません` : '顧客がまだいません。「＋ 顧客追加」から追加してください。'}</p>
+    </div></td></tr>`;
+    return;
+  }
+
+  tbody.innerHTML = filtered.map(c => {
+    const pct = progress(c);
+    const isActive = c.id === selectedId;
+    const tagClass = pct === 100 ? 'tag-done' : pct > 0 ? 'tag-wip' : 'tag-empty';
+    const tagLabel = pct === 100 ? '完了' : pct > 0 ? '進行中' : '未着手';
+    const initials = c.name.slice(0, 2).toUpperCase();
+    const startMonth = c.steps.startMonth || '<span style="color:var(--empty-fg)">—</span>';
+
+    // 次のアクション: 最初の未完了・非スキップのステップ
+    const nextStep = activeSteps(c).find(s => !(c.steps[s.key] || '').trim());
+    const nextStepEl = nextStep
+      ? `<span style="font-size:.82rem;color:var(--text)">${nextStep.label}</span>`
+      : `<span class="tag tag-done">すべて完了</span>`;
+
+
+    return `
+      <tr class="${isActive ? 'active' : ''}" onclick="openDrawer('${c.id}')">
+        <td><div class="customer-name">
+          ${escHtml(c.name)}
+          <span class="tag ${tagClass}">${tagLabel}</span>
+        </div></td>
+        <td style="font-size:.85rem">${startMonth}</td>
+        <td style="font-size:.82rem;color:var(--muted)">${c.plan ? escHtml(c.plan) : '<span style="color:var(--empty-fg)">—</span>'}</td>
+        <td>${nextStepEl}</td>
+
+        <td class="progress-cell">
+          <div class="progress-wrap">
+            <div class="progress-bg"><div class="progress-fill" style="width:${pct}%"></div></div>
+            <div class="pct-label">${pct}%</div>
+          </div>
+        </td>
+      </tr>`;
+  }).join('');
+}
+
+// ── Utils ─────────────────────────────────────────────────────────
+function todayStr() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+}
+function escHtml(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+function escAttr(s) {
+  return String(s).replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+
+// ── Plan ─────────────────────────────────────────────────────────
+function updatePlan(value) {
+  const c = find(selectedId);
+  if (!c) return;
+  c.plan = value;
+  save();
+  renderTable();
+}
+
+// ── Email import ─────────────────────────────────────────────────
+let importParsed = null;
+
+function openImportModal() {
+  document.getElementById('importEmailText').value = '';
+  document.getElementById('importPreview').className = 'import-preview hidden';
+  document.getElementById('importConfirmBtn').disabled = true;
+  importParsed = null;
+  document.getElementById('importOverlay').classList.remove('hidden');
+  setTimeout(() => document.getElementById('importEmailText').focus(), 50);
+}
+
+function closeImportModal(e) {
+  if (!e || e.target === document.getElementById('importOverlay'))
+    document.getElementById('importOverlay').classList.add('hidden');
+}
+
+function parseImportEmail() {
+  const text = document.getElementById('importEmailText').value;
+  const preview = document.getElementById('importPreview');
+  const confirmBtn = document.getElementById('importConfirmBtn');
+
+  if (!text.trim()) {
+    preview.className = 'import-preview hidden';
+    confirmBtn.disabled = true;
+    importParsed = null;
+    return;
+  }
+
+  // 　 = full-width space (　)
+  const nameMatch  = text.match(/会社名[\s　]+:[\s　]+([^\n\r]+)/);
+  const monthMatch = text.match(/ご利用開始月[\s　]+:[\s　]+(\d{4})年(\d{1,2})月/);
+  const planMatch  = text.match(/プラン[\s　]+:[\s　]+([^\n\r]+)/);
+
+  const name       = nameMatch  ? nameMatch[1].trim()  : null;
+  const startMonth = monthMatch ? `${monthMatch[1]}-${String(monthMatch[2]).padStart(2,'0')}` : null;
+  const plan       = planMatch  ? planMatch[1].trim()   : null;
+
+  if (name) {
+    importParsed = { name, startMonth, plan };
+    const monthDisp = startMonth || '<span style="color:var(--muted)">—</span>';
+    const planDisp  = plan ? escHtml(plan) : '<span style="color:var(--muted)">—</span>';
+    const dupWarn   = customers.some(c => c.name === name)
+      ? '<div style="color:#b45309;font-size:.78rem;margin-top:6px">⚠ 同じ顧客名がすでに登録されています</div>' : '';
+    preview.className = 'import-preview';
+    preview.innerHTML = `
+      <div class="preview-row"><span class="preview-label">顧客名</span><span class="preview-val">${escHtml(name)}</span></div>
+      <div class="preview-row"><span class="preview-label">利用開始月</span><span class="preview-val">${monthDisp}</span></div>
+      <div class="preview-row"><span class="preview-label">プラン</span><span class="preview-val">${planDisp}</span></div>
+      ${dupWarn}`;
+    confirmBtn.disabled = false;
+  } else {
+    importParsed = null;
+    preview.className = 'import-preview error';
+    preview.innerHTML = '<div>会社名が見つかりませんでした。メール本文を確認してください。</div>';
+    confirmBtn.disabled = true;
+  }
+}
+
+function confirmImport() {
+  if (!importParsed) return;
+  const today = todayStr();
+  const steps = { posAccount: today, tcAccount: today };
+  if (importParsed.startMonth) steps.startMonth = importParsed.startMonth;
+  const c = {
+    id: genId(),
+    name: importParsed.name,
+    plan: importParsed.plan || '',
+    createdAt: Date.now(),
+    steps,
+    skipped: {}
+  };
+  customers.unshift(c);
+  save();
+  closeImportModal();
+  renderTable();
+  openDrawer(c.id);
+}
+
+// ── Keyboard ──────────────────────────────────────────────────────
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') {
+    if (!document.getElementById('importOverlay').classList.contains('hidden')) closeImportModal();
+    else if (!document.getElementById('addOverlay').classList.contains('hidden')) closeAddModal();
+    else if (!document.getElementById('deleteOverlay').classList.contains('hidden')) closeDeleteConfirm();
+    else if (selectedId) closeDrawer();
+  }
+});
+document.getElementById('newCustName').addEventListener('keydown', e => {
+  if (e.key === 'Enter') addCustomer();
+});
+
+// ── Init ──────────────────────────────────────────────────────────
+renderTable();
+</script>
+</body>
+</html>
